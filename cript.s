@@ -1,6 +1,6 @@
-	.global _inicio      @ ligador precisa desse rótulo
+	.global main      @ ligador precisa desse rótulo
 
-@///////////////////////////////Controle////////////////////////////////////////////////////////////////////////
+@///////////////////////////////Controle inicial////////////////////////////////////////////////////////////////////////
 	@ Endereco do teclado
 	.set dados_teclado,   	0x00090000	@ endereço do teclado na memória
 	.set status_teclado, 	0x00090001	@ endereço do status do teclado na memória
@@ -10,17 +10,17 @@
 	.equ key_size,		16			@ define o tamanho maximo para chave de 15 caracteres e 1 espaco para o \n
 	.equ msg_size,		255			@ define o tamanho maximo para mensagem 254 caracteres e 1 espaco para o \n
 
-_inicio:
+main:
 
 @/////////////////////////////////////inicio///////////////////////////////////////////////////////////////////
 	@escreve no console pedindo a chave de criptografia
 	mov     r0, #1      			@ Comando de saida padrão
-	ldr     r1, =msg    			@ carrega o r1 com o endereco da mensagem que será escrita
+	ldr     r1, =mensagem1    			@ carrega o r1 com o endereco da mensagem que será escrita
 	ldr     r2, =len    			@ tamanho da mensagem
 	mov     r7, #4                  @r7 recebe função padrão de escrita
-	svc     0x055                   @chamada do sistema para a função
+	svc     0x55                   @chamada do sistema para a função
 
-	@ Leitura inicial da chave *
+	@ Leitura inicial do *
 leitura_inicial:
 	ldr		r3, =status_teclado
 	ldr		r4, [r3]				@ Carrega no R4 o valor de R3
@@ -36,22 +36,22 @@ leitura_inicial:
 	mov    	r1,	#10			 		@ Define a mensagem como *
 	mov    	r2, #1					@ Define tamanho mensagem a ser escrita como 1
 	mov    	r7, #4
-	svc    	#0x55
+	svc    	0x55
 
 @/////////////////////////////////////faz leitura da chave/////////////////////////////////////////////////////
-	@ Apos digitado * leitura da chave
+	@ depois de ler e escrever um *, inicia a leitura da chave numérica
 
 	mov		r5, #0					@ Controle do deslocamento da chave
-leitura_kdb_chave:
+leitura_chave:
 	ldr		r3, =status_teclado
 	ldr		r4, [r3]				@ Carrega no R4 o valor de R3
 	cmp     r4, #flag			@ Compara R4 com 0x1
-	bne    	leitura_kdb_chave		@ Fica no loop se diferentes
+	bne    	leitura_chave		@ Fica no loop se diferentes
 	ldr		r3, =dados_teclado
 	ldr		r4, [r3]				@ Se nao, carrega em R4 o valor digitado
 	cmp		r4, #10					@ Compara se foi outro *
 	bne		escrever				@ Se diferente de * escreve na tela e guarda
-	b		leitura_kdb_chave
+	b		leitura_chave
 
 	@ Exibe um asterisco na tela
 escrever:
@@ -59,14 +59,11 @@ escrever:
 	mov    	r1,	#10			 		@ Define a mensagem como *
 	mov    	r2, #1					@ Define tamanho mensagem a ser escrita como 1
 	mov    	r7, #4
-	svc    	#0x55
+	svc    	0x55
 
 	@ Compara se precionou '#' para encerar a chave
 	cmp		r4, #11					@ Compara se foi '#'
 	bne	guardar_chave			@ Se for diferente salva e le outro valor
-
-	#cmpge	r5, #10					@ Compara se r5 é maior que 10
-	#bne	leitura_kdb_chave		@ Se menor que 10 volta para leitura da chave
 
 	b 		leitura_mensagem		@ Se nao vai para leitura_mensagem
 
@@ -77,14 +74,14 @@ guardar_chave:
 	strb	r4, [r10, r5]			@ Armazena o valor
 	add 	r5, r5, #1				@ Incrementa Deslocamento
 	mov 	r4, #0					@ Limpa registrador
-	b		leitura_kdb_chave		@ Retorna a leitura da chave
+	b		leitura_chave		@ Retorna a leitura da chave
 
-@///////////////////////////////////faz leitura da mensagem//////////////////////////////////////////////
+@///////////////////////////////////faz leitura da mensagem//////////////////////////////////////////////////////////
 leitura_mensagem:
 
-	@Escreve a mensagem pedindo para digitar a mensagem
+	@Escreve no console pedindo para digitar a mensagem
 	mov     r0, #1      			@ Comando de saida
-	ldr     r1, =msg2    			@ Endereco da mensagem
+	ldr     r1, =mensagem2    			@ Endereco da mensagem
 	ldr     r2, =len2    			@ Tamanho mensagem a ser escrita
 	mov     r7, #4
 	svc     0x055
@@ -94,7 +91,7 @@ leitura_mensagem:
 	ldr     r1, =mensagem    		@ Endereco da mensagem
 	ldr     r2, =msg_size 			@ Tamanho maxio a ser lido
 	mov     r7, #3
-	svc     #0x55
+	svc     0x55
 
 @///////////////////////////////////criptografa mensagem/////////////////////////////////////////////////////////////
 	mov		r0, #0					@ Registrador vai ser usado no desolocamento da mensagem e mensagem criptografada
@@ -132,7 +129,7 @@ escreve_cripto:
 
 	@Escreve a mensagem pedindo a chave de descriptografia
 	mov     r0, #1      			@ Comando de saida
-	ldr     r1, =msg3    			@ Endereco da mensagem
+	ldr     r1, =mensagem3    			@ Endereco da mensagem
 	ldr     r2, =len3	 			@ Tamanho da mensagem
 	mov     r7, #4
 	svc     #0x55
@@ -230,22 +227,27 @@ final:
 	svc     #0x55
 
 @///////////////////////////////////mensagens///////////////////////////////////////////////////////
-@onde serao armazenados os caracteres lidos
-chave:
-	.skip key_size			@ Chave criptografia
-chave_desc:
-	.skip key_size			@ Chave descriptografia
-mensagem:
-	.skip msg_size			@ Mensagem digitada
-msg_cripto:
-	.skip msg_size			@ Mensagem criptografada
-msg_desc:
-	.skip msg_size			@ Mensagem descriptografada
 
-@Mensagem que serao apresentadas ao usuario
-msg:		.ascii   "Digite a chave para criar a criptografia \n-no teclado numerico\n"
-len = . - msg
-msg2:		.ascii   "\nDigite a mensagem a ser criptografada\n\n"
-len2 = . - msg2
-msg3:		.ascii   "\nDigite a chave para descriptografar \n-no teclado numerico\n"
-len3 = . - msg3
+@mensagens exibidas para o usuario no console
+           
+mensagem1:		.ascii   "|---------------------------------|\n|Insira uma chave de criptografia |\n|---------------------------------|\n|inicie com '*' e termine com '#' |\n|---------------------------------|\n"
+len = . - mensagem1
+mensagem2:		.ascii   "\n|---------------------------------|\n|Insira a mensagem a criptografar |\n|---------------------------------|\n\n"
+len2 = . - mensagem2
+mensagem3:		.ascii   "\n|---------------------------------|\n|A mensagem esta criptografada!   |\n|---------------------------------|\n|Insira a chave de descriptografia|\n|---------------------------------|\n|inicie com '*' e termine com '#' |\n|---------------------------------|\n"
+len3 = . - mensagem3
+
+
+@onde serao armazenados os caracteres lidos
+
+chave:
+	.skip key_size			@ guarda a chave de criptografia
+chave_desc:
+	.skip key_size			@ guarda a chave de descriptografia
+mensagem:
+	.skip msg_size			@ guarda a mensagem digitada
+msg_cripto:
+	.skip msg_size			@ guarda a mensagem criptografada
+msg_desc:
+	.skip msg_size			@ guarda a mensagem descriptografada
+
